@@ -23,6 +23,11 @@ jobs:
       with:
         node-version: '18'
         
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        
     - name: Setup Rust cache
       uses: actions/cache@v4
       with:
@@ -40,19 +45,28 @@ jobs:
       if: matrix.platform == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+        sudo apt-get install -y build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev libwebkit2gtk-4.0-dev
+        # 显示已安装的依赖版本
+        gcc --version
+        rustc --version || echo "Rust not yet installed"
         
     - name: Install system dependencies (macOS)
       if: matrix.platform == 'macos-latest'
       run: |
         # Install Xcode command line tools if not present
         xcode-select --install 2>/dev/null || true
+        # 显示已安装的工具版本
+        clang --version
+        rustc --version || echo "Rust not yet installed"
         
     - name: Install Pake CLI
       run: |
         npm config set fund false
         npm config set audit false
+        echo "Installing Pake CLI..."
         npm install -g pake-cli --timeout=600000
+        echo "Pake CLI installation completed"
+        pake --version
       timeout-minutes: 15
       
     - name: Build for Windows
@@ -68,12 +82,33 @@ jobs:
         pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./app.icns" --hide-title-bar --width 950 --height 700
       timeout-minutes: 45
       
+    - name: Debug environment (Linux)
+      if: matrix.platform == 'ubuntu-latest'
+      run: |
+        echo "=== Environment Information ==="
+        whoami
+        pwd
+        ls -la
+        echo "=== Rust Information ==="
+        rustc --version
+        cargo --version
+        echo "=== Node Information ==="
+        node --version
+        npm --version
+        pake --version
+        echo "=== System Information ==="
+        uname -a
+        ldd --version
+        
     - name: Build for Linux
       if: matrix.platform == 'ubuntu-latest'
       run: |
         export CARGO_NET_RETRY=10
         export CARGO_NET_TIMEOUT=60
+        echo "Starting Linux build..."
         pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets deb
+        echo "Linux build completed"
+        ls -la *.deb || echo "No .deb files found"
       timeout-minutes: 30
       
     - name: Upload artifacts
