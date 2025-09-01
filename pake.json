@@ -1,0 +1,10 @@
+{
+  "url": "https://chat.deepseek.com",
+  "name": "DeepSeek Chat",
+  "width": 950,
+  "height": 700,
+  "hideTitleBar": true,
+  "icon": "./app.icns",
+  "identifier": "com.deepseek.chat",
+  "productName": "DeepSeek Chat"
+}

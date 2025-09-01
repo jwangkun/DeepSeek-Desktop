@@ -1,0 +1,48 @@
+name: Build DeepSeek Chat App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install Pake CLI
+      run: npm install -g pake-cli
+      
+    - name: Build for Windows
+      if: matrix.platform == 'windows-latest'
+      run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo-new.png" --hide-title-bar --width 950 --height 700 --targets x64
+      
+    - name: Build for macOS
+      if: matrix.platform == 'macos-latest'
+      run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./app.icns" --hide-title-bar --width 950 --height 700
+      
+    - name: Build for Linux
+      if: matrix.platform == 'ubuntu-latest'
+      run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo-new.png" --hide-title-bar --width 950 --height 700 --targets deb
+      
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: deepseek-chat-${{ matrix.platform }}
+        path: |
+          *.dmg
+          *.exe
+          *.deb
+          *.AppImage
