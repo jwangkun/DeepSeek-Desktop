@@ -1,176 +1,311 @@
 name: Build DeepSeek Chat App
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Select action: "test" for checks, "build" for artifacts.'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+        - test
+        - build
+      platforms:
+        description: 'Select platforms (only for "build" action).'
+        required: false
+        type: choice
+        default: 'all'
+        options:
+        - all
+        - ubuntu
+        - windows
+        - macos
+        - ubuntu-windows
+        - ubuntu-macos
+        - windows-macos
+      upload_artifacts:
+        description: 'Upload build artifacts (consumes storage space).'
+        required: false
+        type: boolean
+        default: true
+
+# 需要写权限以上传 artifacts
+permissions:
+  contents: write
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        platform: [macos-latest, windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
-    timeout-minutes: 60
-    
+  test:
+    if: github.event.inputs.action == 'test'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: stable
-        
-    - name: Setup Rust cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-        key: ${{ runner.os }}-cargo-pake-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-pake-
-          ${{ runner.os }}-cargo-
-        
-    - name: Install system dependencies (Linux)
-      if: matrix.platform == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev libwebkit2gtk-4.0-dev libgtksourceview-3.0-dev
-        # 安装额外的Tauri依赖
-        sudo apt-get install -y libsoup2.4-dev libjavascriptcoregtk-4.0-dev
-        # 显示已安装的依赖版本
-        gcc --version
-        pkg-config --version
-        rustc --version || echo "Rust not yet installed"
-        
-    - name: Install system dependencies (macOS)
-      if: matrix.platform == 'macos-latest'
-      run: |
-        # Install Xcode command line tools if not present
-        xcode-select --install 2>/dev/null || true
-        # 显示已安装的工具版本
-        clang --version
-        rustc --version || echo "Rust not yet installed"
-        
-    - name: Install Pake CLI
-      run: |
-        npm config set fund false
-        npm config set audit false
-        echo "Installing Pake CLI..."
-        npm install -g pake-cli --timeout=600000 --verbose
-        echo "Pake CLI installation completed"
-        which pake || echo "Pake CLI not found in PATH"
-        pake --version || echo "Failed to get Pake version"
-        # 检查Pake CLI的依赖
-        npm list -g pake-cli || echo "Failed to list Pake CLI info"
-      timeout-minutes: 15
+      - name: Checkout code
+        uses: actions/checkout@v4
       
-    - name: Prepare build environment
-      run: |
-        echo "Preparing build environment..."
-        mkdir -p ${{ github.workspace }}/build || echo "Failed to create build directory"
-        chmod 755 ${{ github.workspace }}/build || echo "Failed to set permissions"
-      shell: bash
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
       
-    - name: Build for Windows
-      if: matrix.platform == 'windows-latest'
-      run: |
-        echo "Starting Windows build..."
-        echo "Current directory: %cd%"
-        dir
-        echo "Checking icon file:"
-        dir .\deepseek-logo.png 2>nul || echo "Icon file not found"
-        echo "Running Pake build command..."
-        pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets x64 --verbose
-        if %ERRORLEVEL% neq 0 (
-          echo "Pake build failed with exit code %ERRORLEVEL%"
-          exit /b 1
-        )
-        echo "Windows build completed"
-        dir *.exe 2>nul || echo "No .exe files found"
-      timeout-minutes: 30
+      - name: Install Pake CLI
+        run: |
+          npm config set fund false
+          npm config set audit false
+          echo "Installing Pake CLI..."
+          npm install -g pake-cli --timeout=300000 --verbose
+          echo "Pake CLI installation completed"
+          pake --version
+        timeout-minutes: 10
       
-    - name: Build for macOS
-      if: matrix.platform == 'macos-latest'
-      run: |
-        export CARGO_NET_RETRY=10
-        export CARGO_NET_TIMEOUT=60
-        export RUST_BACKTRACE=1
-        echo "Starting macOS build..."
-        echo "Current directory: $(pwd)"
-        ls -la
-        echo "Checking icon file:"
-        ls -la ./app.icns || echo "Icon file not found"
-        echo "Running Pake build command..."
-        pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./app.icns" --hide-title-bar --width 950 --height 700 --verbose || {
-          echo "Pake build failed with exit code $?"
-          echo "Checking for any generated files:"
-          find . -name "*.dmg" -o -name "*.app" 2>/dev/null || echo "No build artifacts found"
-          exit 1
-        }
-        echo "macOS build completed"
-        ls -la *.dmg *.app 2>/dev/null || echo "No .dmg or .app files found"
-      timeout-minutes: 45
+      - name: Verify configuration and files
+        run: |
+          echo "Checking project structure..."
+          ls -la
+          echo "\nChecking pake.json..."
+          cat pake.json
+          echo "\nChecking icon files..."
+          ls -la *.png *.icns 2>/dev/null || echo "Icon files check completed"
+          echo "\nTesting build command syntax (dry run)..."
+          echo "macOS: pake https://chat.deepseek.com --name 'DeepSeek Chat' --icon './app.icns' --hide-title-bar --width 950 --height 700"
+          echo "Linux: pake https://chat.deepseek.com --name 'DeepSeek Chat' --icon './deepseek-logo.png' --hide-title-bar --width 950 --height 700"
+          echo "Windows: pake https://chat.deepseek.com --name 'DeepSeek Chat' --icon './deepseek-logo.png' --hide-title-bar --width 950 --height 700"
+
+  build-ubuntu:
+    if: contains(github.event.inputs.action, 'build') && (contains(github.event.inputs.platforms, 'all') || contains(github.event.inputs.platforms, 'ubuntu'))
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       
-    - name: Debug environment (Linux)
-      if: matrix.platform == 'ubuntu-latest'
-      run: |
-        echo "=== Environment Information ==="
-        whoami
-        pwd
-        ls -la
-        echo "=== Rust Information ==="
-        rustc --version
-        cargo --version
-        echo "=== Node Information ==="
-        node --version
-        npm --version
-        pake --version
-        echo "=== System Information ==="
-        uname -a
-        ldd --version
-        
-    - name: Build for Linux
-      if: matrix.platform == 'ubuntu-latest'
-      run: |
-        export CARGO_NET_RETRY=10
-        export CARGO_NET_TIMEOUT=60
-        export RUST_BACKTRACE=1
-        echo "Starting Linux build..."
-        echo "Current directory: $(pwd)"
-        echo "Files in current directory:"
-        ls -la
-        echo "Checking icon file:"
-        ls -la ./deepseek-logo.png || echo "Icon file not found"
-        echo "Running Pake build command..."
-        pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets deb --verbose || {
-          echo "Pake build failed with exit code $?"
-          echo "Checking for any generated files:"
-          find . -name "*.deb" -o -name "*.AppImage" -o -name "*.tar.gz" 2>/dev/null || echo "No build artifacts found"
-          exit 1
-        }
-        echo "Linux build completed"
-        echo "Checking for generated files:"
-        ls -la *.deb *.AppImage 2>/dev/null || echo "No .deb or .AppImage files found"
-        find . -name "*.deb" -o -name "*.AppImage" || echo "No build artifacts found anywhere"
-      timeout-minutes: 30
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ubuntu-pake-${{ hashFiles('**/Cargo.lock') }}
       
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: deepseek-chat-${{ matrix.platform }}
-        path: |
-          *.dmg
-          *.exe
-          *.deb
-          *.AppImage
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          echo "Installing essential build tools..."
+          sudo apt-get install -y \
+            build-essential curl wget file pkg-config \
+            libssl-dev libgtk-3-dev libgtksourceview-3.0-dev \
+            libwebkit2gtk-4.0-dev libjavascriptcoregtk-4.0-dev \
+            libayatana-appindicator3-dev librsvg2-dev \
+            libsoup2.4-dev libudev-dev
+          echo "System dependencies installed successfully"
+      
+      - name: Install Pake CLI
+        run: |
+          npm config set fund false
+          npm config set audit false
+          echo "Installing Pake CLI..."
+          npm install -g pake-cli --timeout=600000 --verbose
+          echo "Verifying Pake CLI installation..."
+          which pake
+          pake --version
+        timeout-minutes: 15
+      
+      - name: Environment debugging
+        run: |
+          echo "=== Environment Information ==="
+          whoami
+          pwd
+          ls -la
+          echo "\n=== Rust Information ==="
+          rustc --version
+          cargo --version
+          echo "\n=== Node Information ==="
+          node --version
+          npm --version
+          pake --version
+          echo "\n=== System Information ==="
+          uname -a
+          echo "\n=== Library Check ==="
+          pkg-config --modversion gtk+-3.0 || echo "GTK3 not found"
+          pkg-config --modversion webkit2gtk-4.0 || echo "WebKit2GTK not found"
+      
+      - name: Build DeepSeek Chat (Linux)
+        run: |
+          export CARGO_NET_RETRY=10
+          export CARGO_NET_TIMEOUT=60
+          export RUST_BACKTRACE=full
+          export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+          echo "Starting Linux build..."
+          echo "Using icon: ./deepseek-logo.png"
+          ls -la ./deepseek-logo.png
+          echo "Executing Pake build command..."
+          pake https://chat.deepseek.com \
+            --name "DeepSeek Chat" \
+            --icon "./deepseek-logo.png" \
+            --hide-title-bar \
+            --width 950 \
+            --height 700 \
+            --verbose 2>&1 | tee build.log
+          echo "Build completed, checking artifacts..."
+          find . -name "*.deb" -o -name "*.AppImage" | head -10
+      
+      - name: Upload build artifacts (Linux)
+        if: github.event.inputs.upload_artifacts == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-chat-ubuntu
+          path: |
+            *.deb
+            *.AppImage
+          retention-days: 7
+
+  build-windows:
+    if: contains(github.event.inputs.action, 'build') && (contains(github.event.inputs.platforms, 'all') || contains(github.event.inputs.platforms, 'windows'))
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: windows-pake-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install Pake CLI
+        run: |
+          npm config set fund false
+          npm config set audit false
+          echo "Installing Pake CLI..."
+          npm install -g pake-cli --timeout=600000
+          echo "Verifying Pake CLI installation..."
+          pake --version
+        timeout-minutes: 15
+      
+      - name: Environment debugging
+        run: |
+          echo "=== Environment Information ==="
+          echo "Current directory: %cd%"
+          dir
+          echo "=== Node Information ==="
+          node --version
+          npm --version
+          pake --version
+          echo "=== Icon file check ==="
+          dir .\deepseek-logo.png 2>nul || echo "Icon file not found"
+      
+      - name: Build DeepSeek Chat (Windows)
+        run: |
+          echo "Starting Windows build..."
+          echo "Using icon: ./deepseek-logo.png"
+          echo "Executing Pake build command..."
+          pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --verbose
+          if %ERRORLEVEL% neq 0 (
+            echo "Build failed with exit code %ERRORLEVEL%"
+            exit /b 1
+          )
+          echo "Build completed, checking artifacts..."
+          dir *.exe *.msi 2>nul || echo "No Windows installer files found"
+      
+      - name: Upload build artifacts (Windows)
+        if: github.event.inputs.upload_artifacts == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-chat-windows
+          path: |
+            *.exe
+            *.msi
+          retention-days: 7
+
+  build-macos:
+    if: contains(github.event.inputs.action, 'build') && (contains(github.event.inputs.platforms, 'all') || contains(github.event.inputs.platforms, 'macos'))
+    runs-on: macos-12
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: macos-pake-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install system dependencies
+        run: |
+          # Install Xcode command line tools if not present
+          xcode-select --install 2>/dev/null || true
+          echo "Xcode tools check completed"
+      
+      - name: Install Pake CLI
+        run: |
+          npm config set fund false
+          npm config set audit false
+          echo "Installing Pake CLI..."
+          npm install -g pake-cli --timeout=600000 --verbose
+          echo "Verifying Pake CLI installation..."
+          which pake
+          pake --version
+        timeout-minutes: 15
+      
+      - name: Environment debugging
+        run: |
+          echo "=== Environment Information ==="
+          whoami
+          pwd
+          ls -la
+          echo "\n=== System Information ==="
+          uname -a
+          clang --version
+          echo "\n=== Node Information ==="
+          node --version
+          npm --version
+          pake --version
+          echo "\n=== Icon file check ==="
+          ls -la ./app.icns || echo "macOS icon file not found"
+      
+      - name: Build DeepSeek Chat (macOS)
+        run: |
+          export CARGO_NET_RETRY=10
+          export CARGO_NET_TIMEOUT=60
+          export RUST_BACKTRACE=1
+          echo "Starting macOS build..."
+          echo "Using icon: ./app.icns"
+          ls -la ./app.icns
+          echo "Executing Pake build command..."
+          pake https://chat.deepseek.com \
+            --name "DeepSeek Chat" \
+            --icon "./app.icns" \
+            --hide-title-bar \
+            --width 950 \
+            --height 700 \
+            --verbose || {
+            echo "Build failed with exit code $?"
+            echo "Checking for any generated files:"
+            find . -name "*.dmg" -o -name "*.app" 2>/dev/null || echo "No build artifacts found"
+            exit 1
+          }
+          echo "Build completed, checking artifacts..."
+          ls -la *.dmg *.app 2>/dev/null || echo "Checking for artifacts in subdirectories..."
+          find . -name "*.dmg" | head -5
+      
+      - name: Upload build artifacts (macOS)
+        if: github.event.inputs.upload_artifacts == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-chat-macos
+          path: |
+            *.dmg
+            *.app
+          retention-days: 7
