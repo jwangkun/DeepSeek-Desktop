@@ -15,10 +15,10 @@ jobs:
     runs-on: ${{ matrix.platform }}
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
         
@@ -27,7 +27,7 @@ jobs:
       
     - name: Build for Windows
       if: matrix.platform == 'windows-latest'
-      run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo-new.png" --hide-title-bar --width 950 --height 700 --targets x64
+      run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets x64
       
     - name: Build for macOS
       if: matrix.platform == 'macos-latest'
@@ -35,10 +35,10 @@ jobs:
       
     - name: Build for Linux
       if: matrix.platform == 'ubuntu-latest'
-      run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo-new.png" --hide-title-bar --width 950 --height 700 --targets deb
+      run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets deb
       
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: deepseek-chat-${{ matrix.platform }}
         path: |
