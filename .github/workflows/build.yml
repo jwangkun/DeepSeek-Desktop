@@ -45,9 +45,12 @@ jobs:
       if: matrix.platform == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev libwebkit2gtk-4.0-dev
+        sudo apt-get install -y build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev libwebkit2gtk-4.0-dev libgtksourceview-3.0-dev
+        # 安装额外的Tauri依赖
+        sudo apt-get install -y libsoup2.4-dev libjavascriptcoregtk-4.0-dev
         # 显示已安装的依赖版本
         gcc --version
+        pkg-config --version
         rustc --version || echo "Rust not yet installed"
         
     - name: Install system dependencies (macOS)
@@ -64,14 +67,37 @@ jobs:
         npm config set fund false
         npm config set audit false
         echo "Installing Pake CLI..."
-        npm install -g pake-cli --timeout=600000
+        npm install -g pake-cli --timeout=600000 --verbose
         echo "Pake CLI installation completed"
-        pake --version
+        which pake || echo "Pake CLI not found in PATH"
+        pake --version || echo "Failed to get Pake version"
+        # 检查Pake CLI的依赖
+        npm list -g pake-cli || echo "Failed to list Pake CLI info"
       timeout-minutes: 15
+      
+    - name: Prepare build environment
+      run: |
+        echo "Preparing build environment..."
+        mkdir -p ${{ github.workspace }}/build || echo "Failed to create build directory"
+        chmod 755 ${{ github.workspace }}/build || echo "Failed to set permissions"
+      shell: bash
       
     - name: Build for Windows
       if: matrix.platform == 'windows-latest'
-      run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets x64
+      run: |
+        echo "Starting Windows build..."
+        echo "Current directory: %cd%"
+        dir
+        echo "Checking icon file:"
+        dir .\deepseek-logo.png 2>nul || echo "Icon file not found"
+        echo "Running Pake build command..."
+        pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets x64 --verbose
+        if %ERRORLEVEL% neq 0 (
+          echo "Pake build failed with exit code %ERRORLEVEL%"
+          exit /b 1
+        )
+        echo "Windows build completed"
+        dir *.exe 2>nul || echo "No .exe files found"
       timeout-minutes: 30
       
     - name: Build for macOS
@@ -79,7 +105,21 @@ jobs:
       run: |
         export CARGO_NET_RETRY=10
         export CARGO_NET_TIMEOUT=60
-        pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./app.icns" --hide-title-bar --width 950 --height 700
+        export RUST_BACKTRACE=1
+        echo "Starting macOS build..."
+        echo "Current directory: $(pwd)"
+        ls -la
+        echo "Checking icon file:"
+        ls -la ./app.icns || echo "Icon file not found"
+        echo "Running Pake build command..."
+        pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./app.icns" --hide-title-bar --width 950 --height 700 --verbose || {
+          echo "Pake build failed with exit code $?"
+          echo "Checking for any generated files:"
+          find . -name "*.dmg" -o -name "*.app" 2>/dev/null || echo "No build artifacts found"
+          exit 1
+        }
+        echo "macOS build completed"
+        ls -la *.dmg *.app 2>/dev/null || echo "No .dmg or .app files found"
       timeout-minutes: 45
       
     - name: Debug environment (Linux)
@@ -105,10 +145,24 @@ jobs:
       run: |
         export CARGO_NET_RETRY=10
         export CARGO_NET_TIMEOUT=60
+        export RUST_BACKTRACE=1
         echo "Starting Linux build..."
-        pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets deb
+        echo "Current directory: $(pwd)"
+        echo "Files in current directory:"
+        ls -la
+        echo "Checking icon file:"
+        ls -la ./deepseek-logo.png || echo "Icon file not found"
+        echo "Running Pake build command..."
+        pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets deb --verbose || {
+          echo "Pake build failed with exit code $?"
+          echo "Checking for any generated files:"
+          find . -name "*.deb" -o -name "*.AppImage" -o -name "*.tar.gz" 2>/dev/null || echo "No build artifacts found"
+          exit 1
+        }
         echo "Linux build completed"
-        ls -la *.deb || echo "No .deb files found"
+        echo "Checking for generated files:"
+        ls -la *.deb *.AppImage 2>/dev/null || echo "No .deb or .AppImage files found"
+        find . -name "*.deb" -o -name "*.AppImage" || echo "No build artifacts found anywhere"
       timeout-minutes: 30
       
     - name: Upload artifacts
