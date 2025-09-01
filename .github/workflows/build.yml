@@ -13,6 +13,7 @@ jobs:
       matrix:
         platform: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
     
     steps:
     - uses: actions/checkout@v4
@@ -21,21 +22,60 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
+        
+    - name: Setup Rust cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+        
+    - name: Install system dependencies (Linux)
+      if: matrix.platform == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+        
+    - name: Install system dependencies (macOS)
+      if: matrix.platform == 'macos-latest'
+      run: |
+        # Install Xcode command line tools if not present
+        xcode-select --install 2>/dev/null || true
         
     - name: Install Pake CLI
-      run: npm install -g pake-cli
+      run: |
+        npm config set fund false
+        npm config set audit false
+        npm install -g pake-cli --timeout=600000
+      timeout-minutes: 15
       
     - name: Build for Windows
       if: matrix.platform == 'windows-latest'
       run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets x64
+      timeout-minutes: 30
       
     - name: Build for macOS
       if: matrix.platform == 'macos-latest'
-      run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./app.icns" --hide-title-bar --width 950 --height 700
+      run: |
+        export CARGO_NET_RETRY=10
+        export CARGO_NET_TIMEOUT=60
+        pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./app.icns" --hide-title-bar --width 950 --height 700
+      timeout-minutes: 45
       
     - name: Build for Linux
       if: matrix.platform == 'ubuntu-latest'
-      run: pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets deb
+      run: |
+        export CARGO_NET_RETRY=10
+        export CARGO_NET_TIMEOUT=60
+        pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets deb
+      timeout-minutes: 30
       
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
