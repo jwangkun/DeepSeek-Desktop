@@ -25,9 +25,6 @@ jobs:
           - platform: macos-latest
             target: dmg
             icon: ./app.icns
-          - platform: ubuntu-22.04
-            target: deb
-            icon: ./deepseek-logo.png
           - platform: windows-latest
             target: msi
             icon: ./deepseek-logo.png
@@ -38,12 +35,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install system dependencies (Ubuntu)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev pkg-config
-        shell: bash
+
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -99,7 +91,7 @@ jobs:
       - name: List build outputs
         run: |
           echo "=== Build outputs ==="
-          find . -name "*.dmg" -o -name "*.deb" -o -name "*.msi" -o -name "*.exe" -o -name "*.AppImage" | head -20
+          find . -name "*.dmg" -o -name "*.msi" -o -name "*.exe" | head -20
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -107,10 +99,8 @@ jobs:
           name: deepseek-desktop-${{ matrix.platform }}
           path: |
             *.dmg
-            *.deb
             *.msi
             *.exe
-            *.AppImage
             dist/
           retention-days: 30
 
@@ -134,7 +124,7 @@ jobs:
       - name: Find build artifacts
         run: |
           echo "=== Artifact structure ==="
-          find ./artifacts -type f -name "*.dmg" -o -name "*.deb" -o -name "*.msi" | head -10
+          find ./artifacts -type f -name "*.dmg" -o -name "*.msi" | head -10
           
       - name: Create Release with assets
         uses: softprops/action-gh-release@v1
@@ -148,7 +138,6 @@ jobs:
             
             ### 📥 下载说明：
             - **macOS**: 下载 `.dmg` 文件
-            - **Linux**: 下载 `.deb` 文件  
             - **Windows**: 下载 `.msi` 文件
             
             ### ✨ 特性：
@@ -160,7 +149,6 @@ jobs:
             🔗 提交: ${{ github.sha }}
           files: |
             ./artifacts/**/*.dmg
-            ./artifacts/**/*.deb
             ./artifacts/**/*.msi
           draft: false
           prerelease: false
