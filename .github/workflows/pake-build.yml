@@ -25,7 +25,7 @@ jobs:
           - platform: macos-latest
             target: dmg
             icon: ./app.icns
-          - platform: ubuntu-20.04
+          - platform: ubuntu-22.04
             target: deb
             icon: ./deepseek-logo.png
           - platform: windows-latest
@@ -39,17 +39,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install system dependencies (Ubuntu)
-        if: matrix.platform == 'ubuntu-20.04'
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.0-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev \
-            pkg-config
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev pkg-config
+        shell: bash
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -58,7 +52,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install Pake CLI
         run: |
@@ -138,63 +131,38 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -la ./artifacts/
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Find build artifacts
+        run: |
+          echo "=== Artifact structure ==="
+          find ./artifacts -type f -name "*.dmg" -o -name "*.deb" -o -name "*.msi" | head -10
+          
+      - name: Create Release with assets
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ github.run_number }}
-          release_name: DeepSeek Desktop v${{ github.run_number }}
+          name: DeepSeek Desktop v${{ github.run_number }}
           body: |
             ## DeepSeek Desktop v${{ github.run_number }}
             
-            自动构建的 DeepSeek Desktop 应用
+            🚀 自动构建的 DeepSeek Desktop 应用
             
-            ### 下载说明：
+            ### 📥 下载说明：
             - **macOS**: 下载 `.dmg` 文件
             - **Linux**: 下载 `.deb` 文件  
             - **Windows**: 下载 `.msi` 文件
             
-            ### 更新内容：
+            ### ✨ 特性：
             - 基于最新的 DeepSeek Chat 网页版
             - 使用 Pake 技术打包，体积小巧
             - 支持原生桌面体验
             
-            构建时间: ${{ github.event.head_commit.timestamp }}
-            提交: ${{ github.sha }}
+            📅 构建时间: ${{ github.event.head_commit.timestamp }}  
+            🔗 提交: ${{ github.sha }}
+          files: |
+            ./artifacts/**/*.dmg
+            ./artifacts/**/*.deb
+            ./artifacts/**/*.msi
           draft: false
           prerelease: false
-
-      - name: Upload macOS Release Asset
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/deepseek-desktop-macos-latest/*.dmg
-          asset_name: DeepSeek-Desktop-macOS.dmg
-          asset_content_type: application/octet-stream
-        continue-on-error: true
-
-      - name: Upload Linux Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/deepseek-desktop-ubuntu-20.04/*.deb
-          asset_name: DeepSeek-Desktop-Linux.deb
-          asset_content_type: application/octet-stream
-        continue-on-error: true
-
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/deepseek-desktop-windows-latest/*.msi
-          asset_name: DeepSeek-Desktop-Windows.msi
-          asset_content_type: application/octet-stream
-        continue-on-error: true

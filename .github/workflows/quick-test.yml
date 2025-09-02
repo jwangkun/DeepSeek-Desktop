@@ -1,0 +1,25 @@
+name: Quick Test Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Test Pake CLI
+        run: |
+          echo "Installing Pake CLI..."
+          npm install -g pake-cli@latest
+          echo "Pake version:"
+          pake --version
+          echo "Test completed successfully!"
