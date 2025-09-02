@@ -82,6 +82,8 @@ jobs:
             fi
           fi
           echo "ICON_FILE=$ICON_FILE" >> $GITHUB_ENV
+        shell: bash
+        shell: bash
 
       - name: Build with Pake
         run: |
@@ -100,6 +102,7 @@ jobs:
             --hide-title-bar \
             --targets ${{ matrix.target }}
         timeout-minutes: 30
+        shell: bash
 
       - name: List build outputs
         run: |
