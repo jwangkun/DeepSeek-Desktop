@@ -120,3 +120,81 @@ jobs:
             *.AppImage
             dist/
           retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -la ./artifacts/
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: DeepSeek Desktop v${{ github.run_number }}
+          body: |
+            ## DeepSeek Desktop v${{ github.run_number }}
+            
+            自动构建的 DeepSeek Desktop 应用
+            
+            ### 下载说明：
+            - **macOS**: 下载 `.dmg` 文件
+            - **Linux**: 下载 `.deb` 文件  
+            - **Windows**: 下载 `.msi` 文件
+            
+            ### 更新内容：
+            - 基于最新的 DeepSeek Chat 网页版
+            - 使用 Pake 技术打包，体积小巧
+            - 支持原生桌面体验
+            
+            构建时间: ${{ github.event.head_commit.timestamp }}
+            提交: ${{ github.sha }}
+          draft: false
+          prerelease: false
+
+      - name: Upload macOS Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/deepseek-desktop-macos-latest/*.dmg
+          asset_name: DeepSeek-Desktop-macOS.dmg
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+
+      - name: Upload Linux Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/deepseek-desktop-ubuntu-20.04/*.deb
+          asset_name: DeepSeek-Desktop-Linux.deb
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+
+      - name: Upload Windows Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/deepseek-desktop-windows-latest/*.msi
+          asset_name: DeepSeek-Desktop-Windows.msi
+          asset_content_type: application/octet-stream
+        continue-on-error: true
