@@ -26,7 +26,7 @@ jobs:
             target: dmg
             icon: ./app.icns
           - platform: windows-latest
-            target: msi
+            target: msi,nsis
             icon: ./deepseek-logo.png
     
     runs-on: ${{ matrix.platform }}
@@ -138,7 +138,7 @@ jobs:
             
             ### 📥 下载说明：
             - **macOS**: 下载 `.dmg` 文件
-            - **Windows**: 下载 `.msi` 文件
+            - **Windows**: 下载 `.msi` 文件（Windows Installer）或 `.exe` 文件（NSIS 安装程序）
             
             ### ✨ 特性：
             - 基于最新的 DeepSeek Chat 网页版
@@ -150,6 +150,7 @@ jobs:
           files: |
             ./artifacts/**/*.dmg
             ./artifacts/**/*.msi
+            ./artifacts/**/*.exe
           draft: false
           prerelease: false
         env:
