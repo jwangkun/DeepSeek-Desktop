@@ -1,0 +1,17 @@
+{
+  "name": "deepseek-desktop",
+  "version": "1.0.0",
+  "description": "DeepSeek Desktop Application built with Pake",
+  "scripts": {
+    "build": "pake https://chat.deepseek.com --name DeepSeek-Desktop --icon ./app.iconset/icon_256x256.png --width 1200 --height 800",
+    "build:mac": "pake https://chat.deepseek.com --name DeepSeek-Desktop --icon ./app.iconset/icon_256x256.png --width 1200 --height 800 --targets dmg",
+    "build:linux": "pake https://chat.deepseek.com --name DeepSeek-Desktop --icon ./app.iconset/icon_256x256.png --width 1200 --height 800 --targets deb,appimage",
+    "build:windows": "pake https://chat.deepseek.com --name DeepSeek-Desktop --icon ./app.iconset/icon_256x256.png --width 1200 --height 800 --targets msi"
+  },
+  "devDependencies": {
+    "pake-cli": "^2.0.0"
+  },
+  "keywords": ["desktop", "app", "deepseek", "pake"],
+  "author": "",
+  "license": "MIT"
+}

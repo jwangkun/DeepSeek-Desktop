@@ -1,0 +1,56 @@
+name: Simple Pake Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Website URL to package'
+        required: true
+        default: 'https://chat.deepseek.com'
+      app_name:
+        description: 'Application name'
+        required: true
+        default: 'DeepSeek-Desktop'
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Pake
+        run: |
+          npm install -g pake-cli@latest
+
+      - name: Build app
+        run: |
+          pake "${{ github.event.inputs.url }}" \
+            --name "${{ github.event.inputs.app_name }}" \
+            --icon ./app.iconset/icon_256x256.png \
+            --width 1200 \
+            --height 800 \
+            --targets deb
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pake-build
+          path: |
+            dist/
+            *.deb
+            *.AppImage
