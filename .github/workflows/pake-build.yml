@@ -83,7 +83,6 @@ jobs:
           fi
           echo "ICON_FILE=$ICON_FILE" >> $GITHUB_ENV
         shell: bash
-        shell: bash
 
       - name: Build with Pake
         run: |
