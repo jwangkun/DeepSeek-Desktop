@@ -3,15 +3,19 @@
   "version": "1.0.0",
   "description": "DeepSeek Desktop Application built with Pake",
   "scripts": {
-    "build": "pake https://chat.deepseek.com --name DeepSeek-Desktop --icon ./app.iconset/icon_256x256.png --width 1200 --height 800",
-    "build:mac": "pake https://chat.deepseek.com --name DeepSeek-Desktop --icon ./app.iconset/icon_256x256.png --width 1200 --height 800 --targets dmg",
-    "build:linux": "pake https://chat.deepseek.com --name DeepSeek-Desktop --icon ./app.iconset/icon_256x256.png --width 1200 --height 800 --targets deb,appimage",
-    "build:windows": "pake https://chat.deepseek.com --name DeepSeek-Desktop --icon ./app.iconset/icon_256x256.png --width 1200 --height 800 --targets msi"
+    "build": "pake https://chat.deepseek.com --name 'DeepSeek Chat' --icon ./app.iconset/icon_256x256.png --width 950 --height 700 --hide-title-bar",
+    "build:mac": "pake https://chat.deepseek.com --name 'DeepSeek Chat' --icon ./app.icns --width 950 --height 700 --hide-title-bar --targets dmg",
+    "build:linux": "pake https://chat.deepseek.com --name 'DeepSeek Chat' --icon ./deepseek-logo.png --width 950 --height 700 --hide-title-bar --targets deb,appimage",
+    "build:windows": "pake https://chat.deepseek.com --name 'DeepSeek Chat' --icon ./deepseek-logo.png --width 950 --height 700 --hide-title-bar --targets msi",
+    "test": "echo 'No tests specified' && exit 0"
   },
   "devDependencies": {
-    "pake-cli": "^2.0.0"
+    "pake-cli": "^3.2.17"
   },
-  "keywords": ["desktop", "app", "deepseek", "pake"],
+  "keywords": ["desktop", "app", "deepseek", "pake", "tauri"],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

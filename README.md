@@ -88,34 +88,49 @@ git clone https://github.com/yourusername/DeepSeek-Desktop.git
 cd DeepSeek-Desktop
 ```
 
-2. **安装 Pake CLI**
+2. **安装依赖**
 ```bash
-npm install -g pake-cli
+npm install
+npm install -g pake-cli@latest
 ```
 
 3. **构建应用**
 
-**macOS**
+**使用 npm 脚本（推荐）**
 ```bash
-pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./app.icns" --hide-title-bar --width 950 --height 700
+# 构建所有平台
+npm run build
+
+# 构建特定平台
+npm run build:mac     # macOS
+npm run build:linux   # Linux
+npm run build:windows # Windows
 ```
 
-**Windows**
+**手动构建**
 ```bash
-pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo-new.png" --hide-title-bar --width 950 --height 700 --targets x64
-```
+# macOS
+pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./app.icns" --hide-title-bar --width 950 --height 700 --targets dmg
 
-**Linux**
-```bash
-pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo-new.png" --hide-title-bar --width 950 --height 700 --targets deb
+# Linux
+pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets deb,appimage
+
+# Windows
+pake https://chat.deepseek.com --name "DeepSeek Chat" --icon "./deepseek-logo.png" --hide-title-bar --width 950 --height 700 --targets msi
 ```
 
 ### 自动化构建
 
-本项目使用 GitHub Actions 自动构建多平台版本。推送代码后会自动生成：
-- Windows x64 (.exe)
-- macOS (.dmg)
-- Linux (.deb)
+本项目使用 GitHub Actions 自动构建多平台版本：
+
+1. **自动触发**: 推送到 main/master 分支时自动构建
+2. **手动触发**: 在 Actions 页面手动运行工作流
+3. **支持平台**: 
+   - Windows (.msi)
+   - macOS (.dmg) 
+   - Linux (.deb, .AppImage)
+
+构建完成后，在 Actions 页面的 Artifacts 中下载对应平台的安装包。
 
 ## 📋 项目结构
 

@@ -1,0 +1,121 @@
+name: Build DeepSeek Desktop with Pake
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Website URL to package'
+        required: true
+        default: 'https://chat.deepseek.com'
+      app_name:
+        description: 'Application name'
+        required: true
+        default: 'DeepSeek Chat'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: dmg
+            icon: ./app.icns
+          - platform: ubuntu-20.04
+            target: deb
+            icon: ./deepseek-logo.png
+          - platform: windows-latest
+            target: msi
+            icon: ./deepseek-logo.png
+    
+    runs-on: ${{ matrix.platform }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu-20.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Pake CLI
+        run: |
+          npm install -g pake-cli@latest
+          pake --version
+        timeout-minutes: 10
+
+      - name: Verify icon file
+        run: |
+          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            ls -la ./app.icns || echo "Warning: app.icns not found, will use PNG fallback"
+            ICON_FILE="./app.icns"
+            if [ ! -f "$ICON_FILE" ]; then
+              ICON_FILE="./app.iconset/icon_256x256.png"
+            fi
+          else
+            ls -la ./deepseek-logo.png || echo "Warning: deepseek-logo.png not found, will use iconset fallback"
+            ICON_FILE="./deepseek-logo.png"
+            if [ ! -f "$ICON_FILE" ]; then
+              ICON_FILE="./app.iconset/icon_256x256.png"
+            fi
+          fi
+          echo "ICON_FILE=$ICON_FILE" >> $GITHUB_ENV
+
+      - name: Build with Pake
+        run: |
+          URL="${{ github.event.inputs.url || 'https://chat.deepseek.com' }}"
+          APP_NAME="${{ github.event.inputs.app_name || 'DeepSeek Chat' }}"
+          
+          echo "Building $APP_NAME from $URL"
+          echo "Using icon: $ICON_FILE"
+          echo "Target platform: ${{ matrix.platform }}"
+          
+          pake "$URL" \
+            --name "$APP_NAME" \
+            --icon "$ICON_FILE" \
+            --width 950 \
+            --height 700 \
+            --hide-title-bar \
+            --targets ${{ matrix.target }} \
+            --verbose
+        timeout-minutes: 30
+
+      - name: List build outputs
+        run: |
+          echo "=== Build outputs ==="
+          find . -name "*.dmg" -o -name "*.deb" -o -name "*.msi" -o -name "*.exe" -o -name "*.AppImage" | head -20
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-desktop-${{ matrix.platform }}
+          path: |
+            *.dmg
+            *.deb
+            *.msi
+            *.exe
+            *.AppImage
+            dist/
+          retention-days: 30

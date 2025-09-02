@@ -15,6 +15,11 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
+# 检查 lock 文件
+if [ ! -f "package-lock.json" ] && [ ! -f "yarn.lock" ] && [ ! -f "npm-shrinkwrap.json" ]; then
+    echo "⚠️  没有找到依赖锁定文件，建议运行 'npm install' 生成 package-lock.json"
+fi
+
 echo "✅ 文件检查通过"
 
 # 检查 Node.js 和 npm

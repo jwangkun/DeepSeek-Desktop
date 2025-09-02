@@ -2,7 +2,28 @@
 
 ## 常见问题及解决方案
 
-### 1. 依赖安装失败
+### 1. GitHub Actions 构建失败
+
+#### 问题 1: `src-tauri` 目录不存在
+**错误信息**: `The directory /path/to/src-tauri does not exist`
+**解决方案**: 这是正常的，因为我们使用 Pake CLI 而不是开发 Tauri 应用。新的工作流已经移除了 `src-tauri` 相关配置。
+
+#### 问题 2: 缺少依赖锁定文件
+**错误信息**: `Dependencies lock file is not found`
+**解决方案**:
+```bash
+# 生成 package-lock.json
+npm install
+
+# 或使用 yarn 生成 yarn.lock
+yarn install
+
+# 然后提交锁定文件
+git add package-lock.json
+git commit -m "Add package-lock.json"
+```
+
+### 2. 依赖安装失败
 **问题**: `npm install -g pake-cli` 失败
 **解决方案**:
 ```bash
@@ -11,9 +32,13 @@ yarn global add pake-cli
 
 # 或者使用 npx
 npx pake-cli --version
+
+# 清除 npm 缓存后重试
+npm cache clean --force
+npm install -g pake-cli@latest
 ```
 
-### 2. Rust 编译错误
+### 3. Rust 编译错误
 **问题**: Rust 工具链问题
 **解决方案**:
 ```bash
