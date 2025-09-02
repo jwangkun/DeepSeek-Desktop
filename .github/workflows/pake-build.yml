@@ -16,6 +16,10 @@ on:
         required: true
         default: 'DeepSeek Chat'
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build:
     strategy:
@@ -119,13 +123,50 @@ jobs:
           path: ./artifacts
 
       - name: Display structure of downloaded files
-        run: ls -la ./artifacts/
-
-      - name: Find build artifacts
         run: |
-          echo "=== Artifact structure ==="
-          find ./artifacts -type f -name "*.dmg" -o -name "*.msi" | head -10
+          echo "=== Artifacts directory structure ==="
+          ls -la ./artifacts/
+          echo "=== All files in artifacts ==="
+          find ./artifacts -type f | head -20
+          echo "=== Looking for build outputs ==="
+          find ./artifacts -name "*.dmg" -o -name "*.msi" -o -name "*.exe" | head -10
           
+      - name: Prepare release files
+        run: |
+          echo "=== Preparing release files ==="
+          mkdir -p ./release-files
+          
+          # Copy all build artifacts to release directory
+          find ./artifacts -name "*.dmg" -exec cp {} ./release-files/ \;
+          find ./artifacts -name "*.msi" -exec cp {} ./release-files/ \;
+          find ./artifacts -name "*.exe" -exec cp {} ./release-files/ \;
+          
+          echo "=== Files ready for release ==="
+          ls -la ./release-files/
+          
+          # Rename files for better user experience
+          cd ./release-files
+          for file in *.dmg; do
+            if [ -f "$file" ]; then
+              mv "$file" "DeepSeek-Desktop-macOS.dmg"
+            fi
+          done
+          
+          for file in *.msi; do
+            if [ -f "$file" ]; then
+              mv "$file" "DeepSeek-Desktop-Windows.msi"
+            fi
+          done
+          
+          for file in *.exe; do
+            if [ -f "$file" ]; then
+              mv "$file" "DeepSeek-Desktop-Windows.exe"
+            fi
+          done
+          
+          echo "=== Final release files ==="
+          ls -la
+
       - name: Create Release with assets
         uses: softprops/action-gh-release@v1
         with:
@@ -137,20 +178,20 @@ jobs:
             🚀 自动构建的 DeepSeek Desktop 应用
             
             ### 📥 下载说明：
-            - **macOS**: 下载 `.dmg` 文件
-            - **Windows**: 下载 `.msi` 文件（Windows Installer）或 `.exe` 文件（NSIS 安装程序）
+            - **macOS**: 下载 `DeepSeek-Desktop-macOS.dmg` 文件
+            - **Windows**: 
+              - `DeepSeek-Desktop-Windows.msi` (Windows Installer)
+              - `DeepSeek-Desktop-Windows.exe` (NSIS 安装程序，推荐)
             
             ### ✨ 特性：
             - 基于最新的 DeepSeek Chat 网页版
             - 使用 Pake 技术打包，体积小巧
             - 支持原生桌面体验
+            - 跨平台支持
             
             📅 构建时间: ${{ github.event.head_commit.timestamp }}  
             🔗 提交: ${{ github.sha }}
-          files: |
-            ./artifacts/**/*.dmg
-            ./artifacts/**/*.msi
-            ./artifacts/**/*.exe
+          files: ./release-files/*
           draft: false
           prerelease: false
         env:
